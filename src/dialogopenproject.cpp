@@ -14,6 +14,9 @@ DialogOpenProject::DialogOpenProject(QWidget *parent) :
 {
     setModal(true);
     ui->setupUi(this);
+
+    // Hide Project Type
+    ui->tableProjects->hideColumn(2);
 }
 
 DialogOpenProject::~DialogOpenProject()
@@ -33,6 +36,11 @@ void DialogOpenProject::setDefDir(QString n_defDir)
 QString DialogOpenProject::getDefDir()
 {
     return m_defDir;
+}
+
+bool DialogOpenProject::isNativeProject()
+{
+    return (ui->tableProjects->item(ui->tableProjects->currentRow(),2)->text() == "1");
 }
 
 QString DialogOpenProject::getProjectFolder()
@@ -64,6 +72,30 @@ void DialogOpenProject::RefreshProjectList()
                 item = new QTableWidgetItem(settings.value(GAMETITLE, "Untitled").toString());
                 item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
                 ui->tableProjects->setItem(ui->tableProjects->rowCount()-1,1,item);
+
+                item = new QTableWidgetItem("1");
+                item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+                ui->tableProjects->setItem(ui->tableProjects->rowCount()-1,2,item);
+            } else {
+                QFileInfo f_project(info.absoluteFilePath()+"/"+RM_DB);
+                if (f_project.exists()) {
+                    ui->tableProjects->insertRow(ui->tableProjects->rowCount());
+                    QTableWidgetItem *item = new QTableWidgetItem(info.baseName());
+                    item->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
+                    item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+                    ui->tableProjects->setItem(ui->tableProjects->rowCount() - 1, 0, item);
+                    QSettings settings(m_defDir + info.baseName() + "/" + RM_INI,
+                                       QSettings::IniFormat,
+                                       this);
+                    settings.beginGroup("RPG_RT");
+                    item = new QTableWidgetItem(settings.value(GAMETITLE, "Untitled").toString());
+                    item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+                    ui->tableProjects->setItem(ui->tableProjects->rowCount()-1,1,item);
+
+                    item = new QTableWidgetItem("0");
+                    item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+                    ui->tableProjects->setItem(ui->tableProjects->rowCount()-1,2,item);
+                }
             }
         }
     }
@@ -71,7 +103,7 @@ void DialogOpenProject::RefreshProjectList()
 
 void DialogOpenProject::on_toolProjectPath_clicked()
 {
-    QString path = QFileDialog::getExistingDirectory(this, "Select destination forlder", m_defDir);
+    QString path = QFileDialog::getExistingDirectory(this, "Select destination folder", m_defDir);
     if (path == QString())
         return;
     ui->lineProjectPath->setText(path+"/");

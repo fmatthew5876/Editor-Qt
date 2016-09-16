@@ -647,6 +647,26 @@ void Core::setProjectFolder(const QString &projectFolder)
     m_projectFolder = projectFolder;
 }
 
+bool Core::nativeProject() const
+{
+    return m_native;
+}
+
+void Core::setNativeProject(bool native)
+{
+    m_native = native;
+}
+
+QString Core::legacyEncoding() const
+{
+    return m_legacyEncoding;
+}
+
+void Core::setLegacyEncoding(QString encoding)
+{
+    m_legacyEncoding = encoding;
+}
+
 void Core::runGame()
 {
     if (!m_runGameDialog)

@@ -18,6 +18,7 @@ public:
     void setDefDir(QString n_defDir);
     QString getDefDir();
 
+    bool isNativeProject();
     QString getProjectFolder();
 
 private slots:

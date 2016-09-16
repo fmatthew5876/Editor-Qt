@@ -64,6 +64,11 @@
          <set>AlignJustify|AlignVCenter</set>
         </property>
        </column>
+       <column>
+        <property name="text">
+         <string>Project Type</string>
+        </property>
+       </column>
       </widget>
      </item>
      <item>

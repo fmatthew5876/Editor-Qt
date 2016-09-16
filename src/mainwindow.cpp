@@ -28,6 +28,7 @@
 #include "rpg_map.h"
 #include "rpg_mapinfo.h"
 #include "data.h"
+#include "reader_util.h"
 
 Q_DECLARE_METATYPE(QList<int>)
 Q_DECLARE_METATYPE(QList<float>)
@@ -142,8 +143,10 @@ MainWindow::~MainWindow()
 void MainWindow::LoadLastProject()
 {
     QString l_project = m_settings.value(CURRENT_PROJECT_KEY, QString()).toString();
+    bool l_native = m_settings.value(CURRENT_PROJECT_NATIVE, true).toBool();
     mCore->setProjectFolder(l_project);
-    QFileInfo info(mCore->filePath(ROOT, EASY_DB));
+    mCore->setNativeProject(l_native);
+    QFileInfo info(mCore->filePath(ROOT, l_native ? EASY_DB : RM_DB));
     if (info.exists())
         LoadProject(l_project);
     else
@@ -181,12 +184,14 @@ void MainWindow::LoadProject(QString foldername)
     m_projSett = new QSettings(mCore->filePath(ROOT, EASY_CFG), QSettings::IniFormat, this);
     QString title = m_projSett->value(GAMETITLE, "Untitled").toString();
     mCore->setGameTitle(title);
+    mCore->setNativeProject(true);
     setWindowTitle("EasyRPG Editor - " +  mCore->gameTitle());
     mCore->setLayer(static_cast<Core::Layer>(m_projSett->value(LAYER, Core::LOWER).toInt()));
     mCore->setTileSize(m_projSett->value(TILESIZE, 16).toInt());
     QList<QVariant> m_mapList = m_projSett->value(MAPS, QList<QVariant>()).toList();
     QList<QVariant> m_scaleList = m_projSett->value(SCALES, QList<QVariant>()).toList();
     m_settings.setValue(CURRENT_PROJECT_KEY,  mCore->projectFolder());
+    m_settings.setValue(CURRENT_PROJECT_NATIVE, true);
     ui->treeMap->clear();
     QTreeWidgetItem *root = new QTreeWidgetItem();
     root->setData(1, Qt::DisplayRole, 0);
@@ -240,6 +245,96 @@ void MainWindow::LoadProject(QString foldername)
         scene->setScale(i < m_scaleList.size() ? m_scaleList[i].toFloat() : 1.0);
         ui->tabMap->setCurrentWidget(view);
     }
+    update_actions();
+}
+
+void MainWindow::LoadLegacyProject(QString foldername)
+{
+    Data::Clear();
+    mCore->setProjectFolder(foldername);
+
+    std::vector<std::string> encodings = ReaderUtil::DetectEncodings(mCore->filePath(ROOT, RM_DB).toStdString());
+
+    if (!LDB_Reader::Load(mCore->filePath(ROOT, RM_DB).toStdString(), encodings.front()))
+    {
+        QMessageBox::critical(this,
+                              tr("Error loading legacy project"),
+                              tr("Could not load database file: %0").arg(mCore->filePath(ROOT, RM_DB)));
+        mCore->setProjectFolder("");
+        Data::Clear();
+        return;
+    }
+
+    if (!LMT_Reader::Load(mCore->filePath(ROOT, RM_MT).toStdString(), encodings.front()))
+    {
+        QMessageBox::critical(this,
+                              tr("Error loading legacy project"),
+                              tr("Could not load map tree file: %0").arg(mCore->filePath(ROOT, RM_MT)));
+        mCore->setProjectFolder("");
+        Data::Clear();
+        return;
+    }
+    m_projSett = new QSettings(mCore->filePath(ROOT, RM_INI), QSettings::IniFormat, this);
+
+    INIReader ini(mCore->filePath(ROOT, RM_INI).toStdString());
+    if (ini.ParseError() != -1)
+    {
+        std::string title = ini.Get("RPG_RT", "GameTitle", "Untitled");
+        mCore->setGameTitle(ReaderUtil::Recode(title, encodings.front()).c_str());
+    } else {
+        mCore->setGameTitle("Untitled");
+    }
+
+    m_projSett->endGroup();
+    mCore->setNativeProject(false);
+    mCore->setLegacyEncoding(encodings.front().c_str());
+    setWindowTitle("EasyRPG Editor - " +  mCore->gameTitle());
+    mCore->setLayer(Core::LOWER);
+    mCore->setTileSize(16);
+    m_settings.setValue(CURRENT_PROJECT_KEY,  mCore->projectFolder());
+    m_settings.setValue(CURRENT_PROJECT_NATIVE, false);
+    ui->treeMap->clear();
+    QTreeWidgetItem *root = new QTreeWidgetItem();
+    root->setData(1, Qt::DisplayRole, 0);
+    root->setData(0,Qt::DisplayRole,  mCore->gameTitle());
+    root->setIcon(0,QIcon(":/icons/share/old_folder.png"));
+    RPG::TreeMap maps = Data::treemap;
+    ui->treeMap->addTopLevelItem(root);
+    m_treeItems.clear();
+    m_treeItems[0] = root;
+    //Add Items
+    for (unsigned int i = 1; i < maps.maps.size(); i++)
+    {
+        QTreeWidgetItem *item = new QTreeWidgetItem();
+        item->setData(1,Qt::DisplayRole,maps.maps[i].ID);
+        item->setData(0,Qt::DisplayRole,QString::fromStdString(maps.maps[i].name));
+        item->setIcon(0, QIcon(":/icons/share/old_map.png"));
+        m_treeItems[maps.maps[i].ID] = item;
+    }
+    //Parent Items
+    for (unsigned int i = 1; i < (maps.tree_order.size()); i++)
+    {
+        int id = maps.tree_order[i];
+        RPG::MapInfo info;
+        for (unsigned int j = 0; j < maps.maps.size(); j++)
+            if (id == maps.maps[j].ID)
+            {
+                info = maps.maps[j];
+                break;
+            }
+        m_treeItems[info.parent_map]->addChild(m_treeItems[info.ID]);
+        if (info.ID == maps.active_node)
+        {
+            ui->treeMap->setCurrentItem(m_treeItems[info.ID]);
+            this->on_treeMap_itemDoubleClicked(m_treeItems[info.ID], 0);
+        }
+    }
+    //Expand Items
+    for (unsigned int i = 0; i < maps.maps.size(); i++)
+    {
+        m_treeItems[maps.maps[i].ID]->setExpanded(maps.maps[i].expanded_node);
+    }
+
     update_actions();
 }
 
@@ -797,8 +892,13 @@ void MainWindow::on_action_Open_Project_triggered()
 {
     DialogOpenProject dlg(this);
     dlg.setDefDir(mCore->defDir());
-    if (dlg.exec() == QDialog::Accepted)
-        LoadProject(dlg.getProjectFolder());
+    if (dlg.exec() == QDialog::Accepted) {
+        if (dlg.isNativeProject()) {
+            LoadProject(dlg.getProjectFolder());
+        } else {
+            LoadLegacyProject(dlg.getProjectFolder());
+        }
+    }
     mCore->setDefDir(dlg.getDefDir());
     m_settings.setValue(DEFAULT_DIR_KEY,dlg.getDefDir());
 }
