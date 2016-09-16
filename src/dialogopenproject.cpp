@@ -62,7 +62,7 @@ void DialogOpenProject::RefreshProjectList()
             if (f_project.exists())
             {
                 ui->tableProjects->insertRow(ui->tableProjects->rowCount());
-                QTableWidgetItem *item = new QTableWidgetItem(info.baseName());
+                QTableWidgetItem *item = new QTableWidgetItem(f_project.absoluteDir().dirName());
                 item->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
                 item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
                 ui->tableProjects->setItem(ui->tableProjects->rowCount()-1,0,item);
@@ -80,7 +80,7 @@ void DialogOpenProject::RefreshProjectList()
                 QFileInfo f_project(info.absoluteFilePath()+"/"+RM_DB);
                 if (f_project.exists()) {
                     ui->tableProjects->insertRow(ui->tableProjects->rowCount());
-                    QTableWidgetItem *item = new QTableWidgetItem(info.baseName());
+                    QTableWidgetItem *item = new QTableWidgetItem(f_project.absoluteDir().dirName());
                     item->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
                     item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
                     ui->tableProjects->setItem(ui->tableProjects->rowCount() - 1, 0, item);
