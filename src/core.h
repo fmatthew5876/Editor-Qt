@@ -22,6 +22,7 @@
  *      SETTINGS KEYS       *
  * **************************/
 #define CURRENT_PROJECT_KEY "current_project"
+#define CURRENT_PROJECT_NATIVE "native_project"
 #define DEFAULT_DIR_KEY "default_dir"
 #define RTP_KEY "rtp_path"
 
@@ -164,6 +165,12 @@ public:
     QString projectFolder() const;
     void setProjectFolder(const QString &projectFolder);
 
+    bool nativeProject() const;
+    void setNativeProject(bool native);
+
+    QString legacyEncoding() const;
+    void setLegacyEncoding(QString encoding);
+
     void runGame();
     void runGameHere(int map_id, int x, int y);
     void runBattleTest(int troop_id);
@@ -183,6 +190,8 @@ private:
     QString m_gameTitle;
     QString m_defDir;
     QString m_projectFolder;
+    bool m_native = true;
+    QString m_legacyEncoding;
     QString m_rtpDir;
     QColor m_keycolor;
     Layer m_layer;

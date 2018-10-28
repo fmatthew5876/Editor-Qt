@@ -26,6 +26,7 @@ public:
 
     void LoadLastProject();
     void LoadProject(QString foldername);
+    void LoadLegacyProject(QString foldername);
     void ImportProject(QString p_path, QString d_folder, bool convert_xyz);
 
     QGraphicsMapScene *currentScene();

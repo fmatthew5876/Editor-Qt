@@ -308,9 +308,20 @@ void QGraphicsMapScene::Load()
             n_mapInfo = Data::treemap.maps[i]; //Revert info changes
             break;
         }
-    QString file = QString("Map%1.emu")
-            .arg(QString::number(n_mapInfo.ID), 4, QLatin1Char('0'));
-    m_map = LMU_Reader::LoadXml(mCore->filePath(ROOT, file).toStdString());
+
+    QString file;
+    if (mCore->nativeProject()) {
+        file = "Map%1.emu";
+    } else {
+        file = "Map%1.lmu";
+    }
+
+    file = file.arg(QString::number(n_mapInfo.ID), 4, QLatin1Char('0'));
+    if (mCore->nativeProject()) {
+        m_map = LMU_Reader::LoadXml(mCore->filePath(ROOT, file).toStdString());
+    } else {
+        m_map = LMU_Reader::Load(mCore->filePath(ROOT, file).toStdString(), mCore->legacyEncoding().toStdString());
+    }
     m_lower =  m_map->lower_layer;
     m_upper =  m_map->upper_layer;
     if(m_map->parallax_flag)
